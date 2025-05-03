@@ -2,6 +2,8 @@ const express = require('express');
 const axios = require('axios');
 const net = require('net');
 const parseString = require("xml2js").parseString;
+const { createClient } = require("redis")
+const repl = require("node:repl");
 
 require('dotenv').config();
 
@@ -10,6 +12,83 @@ const port = process.env.SERVER_PORT || 8080;
 
 // Stockage de la liste des arrêts de bus
 let busStopsDb = [];
+
+async function getInfo(type, key) {
+    const client = createClient()
+        .on("error", (err) => console.log("Redis Client Error", err));
+
+    await client.connect();
+
+    let response = await client.get(key);
+
+    if (response === null) {
+        return new Promise((resolve, reject) => {
+            const tcpClient = new net.Socket();
+
+            tcpClient.connect(process.env.BUS_TRACKER_API_PORT, process.env.BUS_TRACKER_API_SERVER, () => {
+                if (type === 'stop') {
+                    tcpClient.write(`<?xml version="1.0" encoding="utf-8"?><evGetNextTripList_SM_v2><BusStopShortNames><string>${key}</string></BusStopShortNames></evGetNextTripList_SM_v2>`);
+                } else {
+                    tcpClient.write(`<?xml version="1.0" encoding="utf-8"?><evGetBusPos_v1><BusId>${key}</BusId></evGetBusPos_v1>`);
+                }
+            });
+
+            tcpClient.on('data', function (data) {
+                let res = data.toString();
+
+                parseString(res, function (err, result) {
+                    if (err) {
+                        console.error("Erreur de parsing XML :", err);
+                        reject(err);
+                        return;
+                    }
+                    res = result;
+
+                    let sendedResponse;
+                    if (type === 'stop') {
+                        sendedResponse = [];
+                        for (let busLines in res.evNextTripList_SM_v1.Line[0].string) {
+                            sendedResponse.push({ "Line": res.evNextTripList_SM_v1.Line[0].string[busLines] });
+                        }
+                        for (let busDestinations in res.evNextTripList_SM_v1.Description[0].string) {
+                            sendedResponse[busDestinations].destination = res.evNextTripList_SM_v1.Description[0].string[busDestinations];
+                        }
+                        for (let busPassageTime in res.evNextTripList_SM_v1.Description[0].string) {
+                            sendedResponse[busPassageTime].busPassageTime = res.evNextTripList_SM_v1.Time[0].dateTime[busPassageTime];
+                        }
+                        for (let busId in res.evNextTripList_SM_v1.Description[0].string) {
+                            sendedResponse[busId].busId = res.evNextTripList_SM_v1.BusId[0].int[busId];
+                        }
+                        sendedResponse.push({
+                            "NoTripsToday": res.evNextTripList_SM_v1.NoTripsToday[0],
+                            "LastTrips": res.evNextTripList_SM_v1.LastTrips[0]
+                        });
+                    } else {
+                        sendedResponse = { busID: res.evBusPos_v1.BusId[0], X: res.evBusPos_v1.X[0], Y: res.evBusPos_v1.Y[0] };
+                    }
+
+                    client.set(key, JSON.stringify(sendedResponse));
+                    client.expire(key, 5);
+                    console.log(sendedResponse);
+                    resolve(sendedResponse);
+                });
+            });
+
+            tcpClient.on('error', (err) => {
+                console.error("Erreur TCP :", err);
+                reject(err);
+            });
+
+            tcpClient.on('close', () => {
+                client.quit();
+            });
+        });
+    } else {
+        await client.quit();
+        console.log("Réponse fournie grâce au cache REDIS : ", response)
+        return JSON.parse(response);
+    }
+}
 
 async function fetchBusStops() {
     let request = await axios.get(`${process.env.BUSINFO_API_URL}/PoiService.svc/${process.env.BUSINFO_API_TOWN}/GetPoiList/`)
@@ -31,81 +110,20 @@ app.get('/bus-stops', async (req, res) => {
 })
 
 app.get('/bus-stop/:ShortName', async (req, res) => {
-    const shortName = req.params.ShortName;
-    console.log(`Demande de l'arrêt ${shortName}...`);
-
-    const tcpClient = new net.Socket();
-
-    tcpClient.connect(process.env.BUS_TRACKER_API_PORT, process.env.BUS_TRACKER_API_SERVER, () => {
-        tcpClient.write(`<?xml version="1.0" encoding="utf-8"?><evGetNextTripList_SM_v2><BusStopShortNames><string>${shortName}</string></BusStopShortNames></evGetNextTripList_SM_v2>`)
-    });
-
-    tcpClient.on('data', function (data) {
-        let response = data.toString();
-
-        parseString(response, function (err, result) {
-            if (err) {
-                console.error("Erreur de parsing XML :", err);
-                res.status(500).send("Erreur de parsing XML");
-                return;
-           }
-            response = result;
-        });
-
-        let sendedResponse = [];
-        for (busLines in response.evNextTripList_SM_v1.Line[0].string) {
-            sendedResponse.push({"Line":response.evNextTripList_SM_v1.Line[0].string[busLines]});
-        }
-        for (busDestinations in response.evNextTripList_SM_v1.Description[0].string) {
-            sendedResponse[busDestinations].destination = response.evNextTripList_SM_v1.Description[0].string[busDestinations];
-        }
-        for (busPassageTime in response.evNextTripList_SM_v1.Description[0].string) {
-            sendedResponse[busPassageTime].busPassageTime = response.evNextTripList_SM_v1.Time[0].dateTime[busDestinations];
-        }
-        for (busId in response.evNextTripList_SM_v1.Description[0].string) {
-            sendedResponse[busId].busId = response.evNextTripList_SM_v1.BusId[0].int[busId];
-        }
-        sendedResponse.push({"NoTripsToday": response.evNextTripList_SM_v1.NoTripsToday[0], "LastTrips": response.evNextTripList_SM_v1.LastTrips[0]});
-
-        res.setHeader('Content-Type', 'application/json');
-        res.send(sendedResponse);
-
-        tcpClient.destroy();
-    })
+    res.setHeader('Content-Type', 'application/json');
+    let a = await getInfo('stop', req.params.ShortName);
+    res.send(a)
 })
 
 app.get('/locate/:busId', async (req, res) => {
-    const busId = req.params.busId;
-    console.log(`Localisation du bus ${busId}...`);
+    res.setHeader('Content-Type', 'application/json');
+    res.send(getInfo('location', req.params.busId));
 
-    const tcpClient = new net.Socket();
-
-    tcpClient.connect(process.env.BUS_TRACKER_API_PORT, process.env.BUS_TRACKER_API_SERVER, () => {
-        tcpClient.write(`<?xml version="1.0" encoding="utf-8"?><evGetBusPos_v1 ><BusId>${busId}</BusId></evGetBusPos_v1>`)
-    });
-
-    tcpClient.on('data', function (data) {
-        let response = data.toString();
-        parseString(response, function (err, result) {
-            if (err) {
-                console.error("Erreur de parsing XML :", err);
-                res.status(500).send("Erreur de parsing XML");
-                return;
-            }
-            response = result;
-        });
-
-        res.setHeader('Content-Type', 'application/json');
-        res.send({busID: response.evBusPos_v1.BusId[0], X: response.evBusPos_v1.X[0], Y: response.evBusPos_v1.Y[0]});
-
-        tcpClient.destroy();
-    })
 })
 
 // Page protégée par le proxy
 app.get('/shutdown', async (req, res) => {
     res.send("Arrêt du serveur...");
-    await tcpClient.destroy();
     console.log("Arrêt du serveur demandée. Arrêt en cours...");
     console.log("Connexion TCP tuée.");
     process.exit(0);
@@ -142,4 +160,5 @@ app.listen(port, async () => {
     console.log(`Serveur démarré sur http://localhost:${port}`);
     console.log("Téléchargement de la base de données en cours...");
     autoUpdateBusStops();
+    console.log("Serveur prêt.")
 });
