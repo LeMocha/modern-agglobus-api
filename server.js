@@ -68,19 +68,16 @@ async function getInfo(type, key) {
                     }
 
                     client.set(key, JSON.stringify(sendedResponse));
-                    client.expire(key, 5);
-                    console.log(sendedResponse);
+                    client.expire(key, 6);
                     resolve(sendedResponse);
+                    client.quit();
+                    tcpClient.destroy();
                 });
             });
 
             tcpClient.on('error', (err) => {
                 console.error("Erreur TCP :", err);
                 reject(err);
-            });
-
-            tcpClient.on('close', () => {
-                client.quit();
             });
         });
     } else {
@@ -111,22 +108,14 @@ app.get('/bus-stops', async (req, res) => {
 
 app.get('/bus-stop/:ShortName', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
-    let a = await getInfo('stop', req.params.ShortName);
-    res.send(a)
+    let response = await getInfo('stop', req.params.ShortName);
+    res.send(response)
 })
 
 app.get('/locate/:busId', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
-    res.send(getInfo('location', req.params.busId));
-
-})
-
-// Page protégée par le proxy
-app.get('/shutdown', async (req, res) => {
-    res.send("Arrêt du serveur...");
-    console.log("Arrêt du serveur demandée. Arrêt en cours...");
-    console.log("Connexion TCP tuée.");
-    process.exit(0);
+    let response = await getInfo('location', req.params.busId);
+    res.send(response);
 })
 
 // Tout le trafic qui n'est pas géré tombe ici
@@ -160,5 +149,4 @@ app.listen(port, async () => {
     console.log(`Serveur démarré sur http://localhost:${port}`);
     console.log("Téléchargement de la base de données en cours...");
     autoUpdateBusStops();
-    console.log("Serveur prêt.")
 });
