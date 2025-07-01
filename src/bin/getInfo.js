@@ -3,7 +3,7 @@ const { createClient } = require("redis");
 const parseString = require("xml2js").parseString;
 
 async function getInfo(type, key) {
-    const client = createClient()
+    const client = createClient({ url: 'redis://cache:6379' })
         .on("error", (err) => console.log("Redis Client Error", err));
 
     await client.connect();

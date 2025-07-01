@@ -15,7 +15,6 @@ Ce projet est un projet personnel et n'est pas affilié à Agglobus ou à la RAT
 - Récupération de la liste des arrêts de bus
 - Récupération des lignes de bus
 - Récupération des horaires de passage
-- Récupération des arrêts de bus visibles sur une carte
 - Localisation en temps réél des bus
 - Caching des données pour améliorer les performances et limiter les appels API sur l'infrastructure d'Agglobus.
 
@@ -25,12 +24,14 @@ Pour des raisons de sécurité les endpoints utilisés pour le dévloppement de 
 Ils sont accessible par un travail de reverse engineering.
 
 ## Stack technique
-- NodeJS 22.15.0 (LTS)
+- Docker
+- NodeJS 22.17.0 (LTS)
 - ExpressJS
 - Axios
 - Redis
 
 ## Installation
+(WIP : Dockerisation du projet)
 1. Clonez le dépôt :
    ```bash
    git clone https://github.com/LeMocha/modern-agglobus-api
@@ -47,7 +48,7 @@ Ils sont accessible par un travail de reverse engineering.
    ```
 4. Lancez le projet :
     ```bash
-    npm start
+    docker compose up -d
     ```
    
 ## Contribution

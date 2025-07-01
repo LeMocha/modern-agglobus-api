@@ -12,7 +12,7 @@ global.busStopsChunksDb = {};
 require('dotenv').config();
 
 const app = express();
-const port = process.env.SERVER_PORT || 8080;
+const port = 5000;
 
 app.get('/bus-stops', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');

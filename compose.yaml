@@ -1,0 +1,32 @@
+services:
+  api-server:
+    build:
+      context: .
+    environment:
+      NODE_ENV: production
+      BUSINFO_API_URL: ${BUSINFO_API_URL}
+      BUSINFO_API_TOWN: ${BUSINFO_API_TOWN}
+      BUS_TRACKER_API_SERVER: ${BUS_TRACKER_API_SERVER}
+      BUS_TRACKER_API_PORT: ${BUS_TRACKER_API_PORT}
+    ports:
+      - 5000:5000
+    depends_on:
+      cache:
+        condition: service_healthy
+  cache:
+    image: redis:8
+    restart: always
+    expose:
+      - 6379
+    command: redis-server --save 20 1 --loglevel warning --maxmemory 1g --maxmemory-policy allkeys-lru
+    mem_limit: 1g 
+    volumes: 
+      - cache:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+volumes:
+  cache:
+    driver: local
