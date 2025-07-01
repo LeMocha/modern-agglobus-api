@@ -29,6 +29,7 @@ Ils sont accessible par un travail de reverse engineering.
 - ExpressJS
 - Axios
 - Redis
+- Caddy
 
 ## Installation
 (WIP : Dockerisation du projet)
