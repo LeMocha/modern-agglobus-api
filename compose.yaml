@@ -2,31 +2,57 @@ services:
   api-server:
     build:
       context: .
+      dockerfile: Dockerfile
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV}
       BUSINFO_API_URL: ${BUSINFO_API_URL}
       BUSINFO_API_TOWN: ${BUSINFO_API_TOWN}
       BUS_TRACKER_API_SERVER: ${BUS_TRACKER_API_SERVER}
       BUS_TRACKER_API_PORT: ${BUS_TRACKER_API_PORT}
-    ports:
-      - 5000:5000
+    expose:
+      - 5000
     depends_on:
       cache:
         condition: service_healthy
+
   cache:
     image: redis:8
     restart: always
     expose:
       - 6379
     command: redis-server --save 20 1 --loglevel warning --maxmemory 1g --maxmemory-policy allkeys-lru
-    mem_limit: 1g 
-    volumes: 
+    mem_limit: 1g
+    volumes:
       - cache:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
       interval: 1s
       timeout: 3s
       retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
+    restart: always
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      - TZ=Europe/Paris
+      - NODE_ENV=${NODE_ENV}
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./conf:/etc/caddy
+      - ./site:/srv
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   cache:
     driver: local
+  caddy_data:
+  caddy_config:
