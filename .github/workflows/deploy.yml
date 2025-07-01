@@ -7,9 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to production server
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -48,13 +46,13 @@ jobs:
 
           echo "📄 Génération du fichier .env"
           cat > .env <<EOVARS
-NODE_ENV=${NODE_ENV}
-DOMAIN=${DOMAIN}
-BUSINFO_API_URL=${BUSINFO_API_URL}
-BUSINFO_API_TOWN=${BUSINFO_API_TOWN}
-BUS_TRACKER_API_SERVER=${BUS_TRACKER_API_SERVER}
-BUS_TRACKER_API_PORT=${BUS_TRACKER_API_PORT}
-EOVARS
+          NODE_ENV=${NODE_ENV}
+          DOMAIN=${DOMAIN}
+          BUSINFO_API_URL=${BUSINFO_API_URL}
+          BUSINFO_API_TOWN=${BUSINFO_API_TOWN}
+          BUS_TRACKER_API_SERVER=${BUS_TRACKER_API_SERVER}
+          BUS_TRACKER_API_PORT=${BUS_TRACKER_API_PORT}
+          EOVARS
 
           echo "🐳 Déploiement Docker"
           docker compose down
