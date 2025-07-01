@@ -1,0 +1,65 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - prod
+
+jobs:
+  deploy:
+    name: Deploy to production server
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up SSH
+      uses: webfactory/ssh-agent@v0.9.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Deploy over SSH
+      env:
+        NODE_ENV: ${{ vars.NODE_ENV }}
+        DOMAIN: ${{ vars.DOMAIN }}
+        BUSINFO_API_URL: ${{ vars.BUSINFO_API_URL }}
+        BUSINFO_API_TOWN: ${{ vars.BUSINFO_API_TOWN }}
+        BUS_TRACKER_API_SERVER: ${{ vars.BUS_TRACKER_API_SERVER }}
+        BUS_TRACKER_API_PORT: ${{ vars.BUS_TRACKER_API_PORT }}
+      run: |
+        ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+          set -e
+
+          echo "🚀 Connexion SSH réussie"
+
+          if [ ! -d /oukile-api ]; then
+            echo "📁 Création de /oukile-api"
+            mkdir -p /oukile-api
+            cd /oukile-api
+            git clone https://github.com/${GITHUB_REPOSITORY}.git .
+          else
+            echo "📂 /oukile-api existe, mise à jour..."
+            cd /oukile-api
+            git fetch origin
+            git checkout prod
+            git reset --hard origin/prod
+          fi
+
+          echo "📄 Génération du fichier .env"
+          cat > .env <<EOVARS
+NODE_ENV=${NODE_ENV}
+DOMAIN=${DOMAIN}
+BUSINFO_API_URL=${BUSINFO_API_URL}
+BUSINFO_API_TOWN=${BUSINFO_API_TOWN}
+BUS_TRACKER_API_SERVER=${BUS_TRACKER_API_SERVER}
+BUS_TRACKER_API_PORT=${BUS_TRACKER_API_PORT}
+EOVARS
+
+          echo "🐳 Déploiement Docker"
+          docker compose down
+          docker compose pull
+          docker compose up -d --build
+
+          echo "✅ Déploiement terminé"
+EOF
