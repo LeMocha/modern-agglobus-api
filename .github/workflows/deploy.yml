@@ -21,31 +21,31 @@ jobs:
         env:
           NODE_ENV: ${{ vars.NODE_ENV }}
           DOMAIN: ${{ vars.DOMAIN }}
-          BUSINFO_API_URL: ${{ vars.BUSINFO_API_URL }}
-          BUSINFO_API_TOWN: ${{ vars.BUSINFO_API_TOWN }}
-          BUS_TRACKER_API_SERVER: ${{ vars.BUS_TRACKER_API_SERVER }}
-          BUS_TRACKER_API_PORT: ${{ vars.BUS_TRACKER_API_PORT }}
+          BUSINFO_API_URL: ${{ secrets.BUSINFO_API_URL }}
+          BUSINFO_API_TOWN: ${{ secrets.BUSINFO_API_TOWN }}
+          BUS_TRACKER_API_SERVER: ${{ secrets.BUS_TRACKER_API_SERVER }}
+          BUS_TRACKER_API_PORT: ${{ secrets.BUS_TRACKER_API_PORT }}
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
           set -e
 
           echo "🚀 Connexion SSH réussie"
 
-          if [ ! -d /oukile-api ]; then
-            echo "📁 Création de /oukile-api"
-            mkdir -p /oukile-api
-            cd /oukile-api
+          if [ ! -d /actions/oukile-api ]; then
+            echo "📁 Création de /actions/oukile-api"
+            mkdir -p /actions/oukile-api
+            cd /actions/oukile-api
             git clone https://github.com/${GITHUB_REPOSITORY}.git .
           else
-            echo "📂 /oukile-api existe, mise à jour..."
-            cd /oukile-api
+            echo "📂 /actions/oukile-api existe, mise à jour..."
+            cd /actions/oukile-api
             git fetch origin
             git checkout prod
             git reset --hard origin/prod
           fi
 
           echo "📄 Génération du fichier .env"
-          cat > .env <<EOVARS
+          cat > /actions/oukile-api/.env <<EOVARS
           NODE_ENV=${NODE_ENV}
           DOMAIN=${DOMAIN}
           BUSINFO_API_URL=${BUSINFO_API_URL}
@@ -55,6 +55,7 @@ jobs:
           EOVARS
 
           echo "🐳 Déploiement Docker"
+          cd /actions/oukile-api
           docker compose down
           docker compose pull
           docker compose up -d --build
