@@ -11,24 +11,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up SSH
-      uses: webfactory/ssh-agent@v0.9.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-    - name: Deploy over SSH
-      env:
-        NODE_ENV: ${{ vars.NODE_ENV }}
-        DOMAIN: ${{ vars.DOMAIN }}
-        BUSINFO_API_URL: ${{ vars.BUSINFO_API_URL }}
-        BUSINFO_API_TOWN: ${{ vars.BUSINFO_API_TOWN }}
-        BUS_TRACKER_API_SERVER: ${{ vars.BUS_TRACKER_API_SERVER }}
-        BUS_TRACKER_API_PORT: ${{ vars.BUS_TRACKER_API_PORT }}
-      run: |
-        ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
+      - name: Deploy over SSH
+        env:
+          NODE_ENV: ${{ vars.NODE_ENV }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          BUSINFO_API_URL: ${{ vars.BUSINFO_API_URL }}
+          BUSINFO_API_TOWN: ${{ vars.BUSINFO_API_TOWN }}
+          BUS_TRACKER_API_SERVER: ${{ vars.BUS_TRACKER_API_SERVER }}
+          BUS_TRACKER_API_PORT: ${{ vars.BUS_TRACKER_API_PORT }}
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << EOF
           set -e
 
           echo "🚀 Connexion SSH réussie"
@@ -62,4 +62,4 @@ EOVARS
           docker compose up -d --build
 
           echo "✅ Déploiement terminé"
-EOF
+          EOF
