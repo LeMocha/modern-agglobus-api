@@ -53,7 +53,7 @@ async function getInfo(type, key) {
                             "LastTrips": res.evNextTripList_SM_v1.LastTrips[0]
                         });
                     } else {
-                        sendedResponse = { busID: res.evBusPos_v1.BusId[0], X: res.evBusPos_v1.X[0], Y: res.evBusPos_v1.Y[0] };
+                        sendedResponse = { busID: res.evBusPos_v1.BusId[0], Lat: res.evBusPos_v1.Y[0], Long: res.evBusPos_v1.X[0] };
                     }
 
                     client.set(key, JSON.stringify(sendedResponse));
