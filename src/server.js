@@ -52,10 +52,9 @@ app.get('/locate/:busId', async (req, res) => {
 
 // Redirection vers Apple Maps pour la localisation d'un bus (le temps qu'un client soit développé)
 app.get('/locate-url/:busId', async (req, res) => {
-    res.setHeader('Content-Type', 'application/text');
     let response = await getInfo('location', req.params.busId);
-    response = `https://maps.apple.com/?q=${response.Lat},${response.Lon}&z=15`;
-    res.send(response);
+    const redirectUrl = `https://maps.apple.com/?q=${response.Lat},${response.Lon}&z=15`;
+    res.redirect(redirectUrl);
 });
 
 // Tout le trafic qui n'est pas géré tombe ici
